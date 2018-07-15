@@ -1,13 +1,13 @@
 {
   "name": "rda-cluster-service",
   "version": "1.0.0",
-  "description": "RDA Cluster mangement service",
+  "description": "RDA Cluster management service",
   "main": "index.mjs",
   "directories": {
     "test": "test"
   },
   "scripts": {
-    "test": "node --experimental-modules ./node_modules/.bin/section ./test/*.mjs --dev --subenv-testing --log-level=error+ --log-module=*"
+    "test": "node --experimental-modules --no-warnings ./node_modules/.bin/section ./test/*.mjs --dev --subenv-testing --log-level=error+ --log-module=*"
   },
   "repository": {
     "type": "git",
@@ -31,10 +31,11 @@
     "ee-types": "^2.1.4",
     "logd": "^2.1.3",
     "logd-console-transport": "^1.0.0",
-    "rda-service": "2.x",
+    "rda-service": "^2.5.1",
     "related": "^2.16.0",
     "related-timestamps": "^2.0.0",
     "status-manager": "^1.0.0",
-    "superagent": "^3.8.3"
+    "superagent": "^3.8.3",
+    "uuid": "^3.3.2"
   }
 }

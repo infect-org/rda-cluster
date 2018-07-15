@@ -9,7 +9,7 @@ import {ServiceManager} from 'rda-service';
 
 
 
-const host = 'http://l.dns.porn:8000';
+const host = 'http://l.dns.porn';
 
 
 

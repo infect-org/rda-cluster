@@ -9,7 +9,7 @@ import {ServiceManager} from 'rda-service';
 
 
 
-const host = 'http://l.dns.porn:8060';
+const host = 'http://l.dns.porn';
 
 
 
@@ -22,8 +22,28 @@ section('Cluster Controller', (section) => {
         });
         
         await sm.startServices('rda-service-registry');
+        await sm.startServices('rda-compute', 'rda-compute', 'rda-compute', 'rda-compute');
     });
 
+
+
+    section.test('Create cluster', async () => {
+        const service = new Service();
+        await service.load();
+
+        const clusterResponse = await superagent.post(`${host}:${service.getPort()}/rda-cluster.cluster`).ok(res => res.status === 201).send({
+            requiredMemory: 1000000,
+            recordCount: 10000,
+            dataSet: 'data-set-'+Math.round(Math.random()*1000000)
+        });
+
+        assert(clusterResponse.body);
+        assert(clusterResponse.body.clusterId);
+        assert(clusterResponse.body.shards.length);
+
+        await section.wait(200);
+        await service.end();
+    });
 
 
     section.test('Get cluster by identifier, negative result', async() => {

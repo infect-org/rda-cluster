@@ -90,3 +90,10 @@ create table rda_cluster_service."instance" (
         on update cascade
         on delete restrict
 );
+
+
+insert into rda_cluster_service."clusterStatus" ("identifier") values ('created');
+insert into rda_cluster_service."clusterStatus" ("identifier") values ('initialized');
+insert into rda_cluster_service."clusterStatus" ("identifier") values ('active');
+insert into rda_cluster_service."clusterStatus" ("identifier") values ('ended');
+insert into rda_cluster_service."clusterStatus" ("identifier") values ('failed');
