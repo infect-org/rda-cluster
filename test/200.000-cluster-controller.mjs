@@ -34,9 +34,10 @@ section('Cluster Controller', (section) => {
         const clusterResponse = await superagent.post(`${host}:${service.getPort()}/rda-cluster.cluster`).ok(res => res.status === 201).send({
             requiredMemory: 1000000,
             recordCount: 10000,
-            dataSet: 'data-set-'+Math.round(Math.random()*1000000)
+            dataSet: 'data-set-'+Math.round(Math.random()*1000000),
+            dataSource: 'data-source-'+Math.round(Math.random()*1000000),
         });
-
+        
         assert(clusterResponse.body);
         assert(clusterResponse.body.clusterId);
         assert(clusterResponse.body.shards.length);
@@ -44,6 +45,7 @@ section('Cluster Controller', (section) => {
         await section.wait(200);
         await service.end();
     });
+
 
 
     section.test('Get cluster by identifier, negative result', async() => {

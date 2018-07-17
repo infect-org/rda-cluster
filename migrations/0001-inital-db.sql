@@ -22,6 +22,7 @@ create table rda_cluster_service."cluster" (
     "id_clusterStatus" int not null,
     identifier varchar(100) not null,
     "dataSetIdentifier" varchar(100) not null,
+    "dataSource" varchar(100) not null,
     constraint "cluster_pk" 
         primary key (id),
     constraint "cluster_unique_identifier"

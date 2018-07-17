@@ -41,10 +41,15 @@ export default class NodeInstanceManager extends EventEmitter {
     /**
     * create a cluster with the given shard config
     */
-    async _createCluster(dataSet, shardConfig) {
+    async _createCluster({
+        dataSource, 
+        dataSet, 
+        shardConfig
+    }) {
         const cluster = await new this.db.cluster({
             identifier: uuid.v4(),
             dataSetIdentifier: dataSet,
+            dataSource: dataSource,
             shard: shardConfig.map((config) => {
                 return new this.db.shard({
                     identifier: config.shardId,
