@@ -71,7 +71,7 @@ create table rda_cluster_service."instance" (
     "id_node" int not null,
     "id_shard" int,
     identifier varchar(100) not null,
-    memory int not null,
+    memory bigint not null,
     url varchar(300) not null,
     created timestamp without time zone not null default now(),
     updated timestamp without time zone not null default now(),
