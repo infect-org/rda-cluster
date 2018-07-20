@@ -27,6 +27,8 @@ export default class ClusterController extends Controller {
         this.db = db;
 
 
+
+
         // manages nodes and does some process wide locking
         // so that nodes don't get added to different clusters
         this.nodeManager = new NodeManager({db});
@@ -36,6 +38,27 @@ export default class ClusterController extends Controller {
         this.enableAction('create');
         this.enableAction('update');
     }
+
+
+
+
+    /**
+    * invalidate all clusters as long we're running on one host
+    */
+    async load() {
+        await super.load();
+
+        const status = await this.db.clusterStatus({
+            identifier: 'ended'
+        }).findOne();
+
+
+        // invalidate all clusters
+        await this.db.cluster().update({
+            id_clusterStatus: status.id
+        });
+    }
+
 
 
 
@@ -104,7 +127,15 @@ export default class ClusterController extends Controller {
 
         Promise.all(shards.map(async (shard) => {
             const instance = shard.instance[0];
-            const response = await superagent.get(`${instance.url}/rda-compute.data-set`).ok(res => [200, 201].includes(res.status)).send();
+            const response = await superagent.get(`${instance.url}/rda-compute.data-set`).ok(r => true).send();
+
+            // set status if available
+            if (response.body && response.body.recordCount) {
+                await this.updateInstanceStatus(instance.id, response.body.recordCount);
+            }
+
+            // log problems
+            if (response.status !== 200 && response.status !== 201) console.log(response.body);
 
             // 201 = the instance has finished loading
             return response.status === 201;
@@ -121,11 +152,25 @@ export default class ClusterController extends Controller {
                 await this.updateClusterStatus(clusterId, 'active');
             }
         }).catch(async (err) => {
+            console.log(err);
             await this.updateClusterStatus(clusterId, 'failed');
         }).catch(l);
     }
 
 
+
+
+
+    /**
+    * update instance status
+    */
+    async updateInstanceStatus(instanceId, loadedRecordCount) {
+        await this.db.instance({
+            id: instanceId
+        }).update({
+            loadedRecordCount
+        });
+    }
 
 
 
@@ -246,27 +291,48 @@ export default class ClusterController extends Controller {
         if (isIdentifier) filter.identifier = clusterId;
         else filter.id = clusterId;
 
-        const cluster = await this.db.cluster(filter).getClusterStatus('identifier').raw().findOne();
+        const cluster = await this.db.cluster('*', filter).fetchClusterStatus('identifier').getShard('*').getInstance('*').raw().findOne();
 
 
         if (cluster) {
+            let totalLoadedRecords = 0;
+            const shards = cluster.shard.map((shard) => {
+                totalLoadedRecords += shard.instance[0].loadedRecordCount;
+
+                return {
+                    identifier: shard.identifier,
+                    instanceIdentifier: shard.instance[0].identifier,
+                    loadedRecordCount: shard.instance[0].loadedRecordCount,
+                };
+            })
+
+            // create a neat object that can be returned
+            const data = {
+                clusterId: cluster.id,
+                clusterIdentifier: cluster.identifier,
+                status: cluster.clusterStatus.identifier,
+                shards: shards,
+                totalLoadedRecords: totalLoadedRecords,
+            };
+
+
             switch (cluster.clusterStatus.identifier) {
                 case 'initialized':
                 case 'created':
-                    response.status(200).send(cluster);
+                    response.status(200).send(data);
                     break;
 
                 case 'active':
-                    response.status(201).send(cluster);
+                    response.status(201).send(data);
                     break;
 
-                case 'active':
-                    response.status(404).send(cluster);
+                case 'ended':
+                    response.status(404).send(data);
                     break;
 
                 case 'failed':
                 default:
-                    response.status(500).send(cluster);
+                    response.status(500).send(data);
                     break;
             }
         } else response.status(404).send(`The cluster with the identifier '${clusterId}' could not be found!`);

@@ -13,6 +13,7 @@ const log = logd.module('rda-cluster');
 
 // controllers
 import ClusterController from './controller/Cluster';
+import ClusterInfoController from './controller/ClusterInfo';
 
 
 
@@ -48,6 +49,7 @@ export default class ClusterService extends RDAService {
 
         // register controllers
         this.registerController(new ClusterController(options));
+        this.registerController(new ClusterInfoController(options));
 
 
         await super.load();

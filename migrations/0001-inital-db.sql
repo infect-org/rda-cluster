@@ -72,6 +72,7 @@ create table rda_cluster_service."instance" (
     "id_shard" int,
     identifier varchar(100) not null,
     memory bigint not null,
+    "loadedRecordCount" int not null default 0,
     url varchar(300) not null,
     created timestamp without time zone not null default now(),
     updated timestamp without time zone not null default now(),
