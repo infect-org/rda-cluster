@@ -1,22 +1,26 @@
-'use strict';
-
-
-import {Controller} from 'rda-service';
+import { Controller } from 'rda-service';
 import type from 'ee-types';
 import logd from 'logd';
 import l from 'ee-log';
-import superagent from 'superagent';
-import MaxDistributionLoadBalancer from '../load-balancers/MaxDistribution';
-import NodeManager from '../NodeManager'
+import MaxDistributionLoadBalancer from '../load-balancers/MaxDistribution.mjs';
+import NodeManager from '../NodeManager.mjs';
+import HTTP2Client from '@distributed-systems/http2-client';
 
 
 const log = logd.module('rda-cluster-controller');
 
 
 
+
+
 export default class ClusterController extends Controller {
 
 
+    /**
+     * @param      {Object}            arg1                 options
+     * @param      {Related.Database}  arg1.db              The database
+     * @param      {RegistryClient}    arg1.registryClient  The registry client
+     */
     constructor({
         db,
         registryClient,
@@ -27,35 +31,48 @@ export default class ClusterController extends Controller {
         this.db = db;
 
 
-
-
         // manages nodes and does some process wide locking
         // so that nodes don't get added to different clusters
-        this.nodeManager = new NodeManager({db});
+        this.nodeManager = new NodeManager({ db });
 
 
         this.enableAction('listOne');
         this.enableAction('create');
         this.enableAction('update');
+
+
+        this.httpClient = new HTTP2Client();
     }
 
 
 
 
     /**
-    * invalidate all clusters as long we're running on one host
-    */
+     * shut down the controller
+     */
+    async end() {
+        await this.httpClient.end();
+    }
+
+
+
+
+    /**
+     * invalidate all clusters as long we're running on one host
+     *
+     * @return     {Promise}
+     */
     async load() {
         await super.load();
 
         const status = await this.db.clusterStatus({
-            identifier: 'ended'
+            identifier: 'ended',
         }).findOne();
 
 
         // invalidate all clusters
         await this.db.cluster().update({
-            id_clusterStatus: status.id
+            id_clusterStatus: status.id,
         });
     }
 
@@ -65,15 +82,18 @@ export default class ClusterController extends Controller {
 
 
     /**
-    * instructs a cluster to initialize, which means it should
-    * instruct its compute instances to load their data. The 
-    * status gets stored in the database.
-    */
-    async update(request, response) {
-        const clusterId = request.params.id;
+     * instructs a cluster to initialize, which means it should instruct its compute instances to
+     * load their data. The status gets stored in the database.
+     *
+     * @param      {Express.request}   request   express request
+     * @param      {Express.response}   response  express response
+     * @return     {Promise}
+     */
+    async update(request) {
+        const clusterId = request.getParameter('id');
 
 
-        // make sure no other call can work on the cluster 
+        // make sure no other call can work on the cluster
         await this.nodeManager.lock(async() => {
 
 
@@ -94,23 +114,23 @@ export default class ClusterController extends Controller {
 
 
                     // call all nodes, tell them to initialize
-                    await Promise.all(shards.map((shard => {
+                    await Promise.all(shards.map((shard) => {
                         const instance = shard.instance[0];
 
-                        return superagent.post(`${instance.url}/rda-compute.data-set`).ok(res => res.status === 201).send({
+                        return this.httpClient.post(`${instance.url}/rda-compute.data-set`).expect(201).send({
                             dataSource: 'infect-rda-sample-storage',
                             shardIdentifier: shard.identifier,
                             minFreeMemory: 25,
                         });
-                    })));
+                    }));
 
 
                     // start polling each instance for the 
                     // data loading status
                     this.monitorInstances(clusterId, shards);
 
-                } else response.status(409).send(`Cluster with the id '${clusterId}' has a non viable status '${cluster.clusterStatus.identifier}'! Can onlny initialize clusters with the status 'created'!`); 
-            } else response.status(404).send(`Cluster with the id '${clusterId}' not found!`); 
+                } else request.response().status(409).send(`Cluster with the id '${clusterId}' has a non viable status '${cluster.clusterStatus.identifier}'! Can onlny initialize clusters with the status 'created'!`); 
+            } else request.response().status(404).send(`Cluster with the id '${clusterId}' not found!`); 
         });
     }
 
@@ -127,18 +147,19 @@ export default class ClusterController extends Controller {
 
         Promise.all(shards.map(async (shard) => {
             const instance = shard.instance[0];
-            const response = await superagent.get(`${instance.url}/rda-compute.data-set`).ok(r => true).send();
+            const response = await this.httpClient.get(`${instance.url}/rda-compute.data-set`).send();
+            const data = await response.getData();
 
             // set status if available
-            if (response.body && response.body.recordCount) {
-                await this.updateInstanceStatus(instance.id, response.body.recordCount);
+            if (data && data.recordCount) {
+                await this.updateInstanceStatus(instance.id, data.recordCount);
             }
 
             // log problems
-            if (response.status !== 200 && response.status !== 201) console.log(response.body);
+            if (response.status() !== 200 && response.status() !== 201) console.log(data);
 
             // 201 = the instance has finished loading
-            return response.status === 201;
+            return response.status(201);
         })).then(async (results) => {
 
             // if there is one false entry we're not done yet
@@ -175,6 +196,8 @@ export default class ClusterController extends Controller {
 
 
 
+
+
     /**
     * update a clusters status
     */
@@ -198,19 +221,29 @@ export default class ClusterController extends Controller {
 
 
     /**
-    * creates a cluster base don the available resources
-    * and the memory requirements of the data set
-    */
-    async create(request, response) {
-        const data = request.body;
+     * creates a cluster based on the available resources and the memory requirements of the data
+     * set
+     *
+     * @param      {Express.request}   request   express request
+     * @param      {Express.response}   response  express response
+     * @return     {Promise}  undefined
+     */
+    async create(request) {
+        const data = await request.getData();
 
-        if (!data) response.status(400).send(`Missing request body!`);
-        else if (!type.object(data)) response.status(400).send(`Request body must be a json object!`);
-        else if (!type.number(data.requiredMemory)) response.status(400).send(`Missing parameter 'requiredMemory' in request body!`);
-        else if (!type.number(data.recordCount)) response.status(400).send(`Missing parameter 'recordCount' in request body!`);
-        else if (!type.string(data.dataSet)) response.status(400).send(`Missing parameter 'dataSet' in request body!`);
-        else if (!type.string(data.dataSource)) response.status(400).send(`Missing parameter 'dataSource' in request body!`);
-        else {
+        if (!data) {
+            request.response().status(400).send('Missing request body!');
+        } else if (!type.object(data)) {
+            request.response().status(400).send('Request body must be a json object!');
+        } else if (!type.number(data.requiredMemory)) {
+            request.response().status(400).send('Missing parameter \'requiredMemory\' in request body!');
+        } else if (!type.number(data.recordCount)) {
+            request.response().status(400).send('Missing parameter \'recordCount\' in request body!');
+        } else if (!type.string(data.dataSet)) {
+            request.response().status(400).send('Missing parameter \'dataSet\' in request body!');
+        } else if (!type.string(data.dataSource)) {
+            request.response().status(400).send('Missing parameter \'dataSource\' in request body!');
+        } else {
             
             // get a lock so that other have to wait until we
             // are ready
@@ -237,7 +270,7 @@ export default class ClusterController extends Controller {
                     shardConfig: shardConfig
                 });
 
-                response.status(201).send({
+                request.response().status(201).send({
                     clusterId: cluster.id,
                     clusterIdentifier: cluster.identifier,
                     shards: shardConfig.map(config => config.shardId)
@@ -262,12 +295,15 @@ export default class ClusterController extends Controller {
         const registryHost = await this.registryClient.registryHost;
 
         // check the status on the cluster service
-        const registryResponse = await superagent.get(`${registryHost}/rda-service-registry.service-instance`).query({
+        const registryResponse = await this.httpClient.get(`${registryHost}/rda-service-registry.service-instance`).query({
             serviceType: 'rda-compute',
-        }).ok(res => res.status === 200).send();
+        }).expect(200).send();
+
+
+        const data = await registryResponse.getData();
 
         // sync with db
-        await this.nodeManager.syncInstances(registryResponse.body);
+        await this.nodeManager.syncInstances(data);
 
         // gets all instances that are not used by others
         return this.nodeManager.getAvailableInstances();
@@ -283,16 +319,20 @@ export default class ClusterController extends Controller {
     /**
     * returns information about a specific cluster
     */
-    async listOne(request, response) {
-        const clusterId = request.params.id;
+    async listOne(request) {
+        const clusterId = request.getParameter('id');
         const isIdentifier = /[^0-9]/i.test(clusterId);
         const filter = {};
 
         if (isIdentifier) filter.identifier = clusterId;
         else filter.id = clusterId;
 
-        const cluster = await this.db.cluster('*', filter).fetchClusterStatus('identifier').getShard('*').getInstance('*').raw().findOne();
-
+        const cluster = await this.db.cluster('*', filter)
+            .fetchClusterStatus('identifier')
+            .getShard('*')
+            .getInstance('*')
+            .raw()
+            .findOne();
 
         if (cluster) {
             let totalLoadedRecords = 0;
@@ -304,7 +344,8 @@ export default class ClusterController extends Controller {
                     instanceIdentifier: shard.instance[0].identifier,
                     loadedRecordCount: shard.instance[0].loadedRecordCount,
                 };
-            })
+            });
+            
 
             // create a neat object that can be returned
             const data = {
@@ -319,22 +360,22 @@ export default class ClusterController extends Controller {
             switch (cluster.clusterStatus.identifier) {
                 case 'initialized':
                 case 'created':
-                    response.status(200).send(data);
+                    request.response().status(200).send(data);
                     break;
 
                 case 'active':
-                    response.status(201).send(data);
+                    request.response().status(201).send(data);
                     break;
 
                 case 'ended':
-                    response.status(404).send(data);
+                    request.response().status(404).send(data);
                     break;
 
                 case 'failed':
                 default:
-                    response.status(500).send(data);
+                    request.response().status(500).send(data);
                     break;
             }
-        } else response.status(404).send(`The cluster with the identifier '${clusterId}' could not be found!`);
+        } else request.response().status(404).send(`The cluster with the identifier '${clusterId}' could not be found!`);
     }
 }

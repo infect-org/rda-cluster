@@ -1,6 +1,3 @@
-'use strict';
-
-
 import EventEmitter from 'events';
 import uuid from 'uuid';
 

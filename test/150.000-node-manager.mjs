@@ -1,8 +1,6 @@
-'use strict';
-
 import NodeManager from '../src/NodeManager';
 import Service from '../';
-import {ServiceManager} from 'rda-service';
+import ServiceManager from '@infect/rda-service-manager';
 import section from 'section-tests';
 import assert from 'assert';
 import log from 'ee-log';

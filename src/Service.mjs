@@ -1,20 +1,14 @@
-'use strict';
-
-
 import RDAService from 'rda-service';
 import path from 'path';
 import logd from 'logd';
 import Related from 'related';
 import RelatedTimestamps from 'related-timestamps';
 
+import ClusterController from './controller/ClusterController.mjs';
+import ClusterInfoController from './controller/ClusterInfoController.mjs';
+
+
 const log = logd.module('rda-cluster');
-
-
-
-// controllers
-import ClusterController from './controller/Cluster';
-import ClusterInfoController from './controller/ClusterInfo';
-
 
 
 

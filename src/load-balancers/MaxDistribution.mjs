@@ -1,6 +1,3 @@
-'use strict';
-
-
 import uuid from 'uuid';
 
 

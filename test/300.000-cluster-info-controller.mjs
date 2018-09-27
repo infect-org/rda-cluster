@@ -2,10 +2,10 @@
 
 import Service from '../index.mjs';
 import section from 'section-tests';
-import superagent from 'superagent';
+import HTTP2Client from '@distributed-systems/http2-client';
 import assert from 'assert';
 import log from 'ee-log';
-import {ServiceManager} from 'rda-service';
+import ServiceManager from '@infect/rda-service-manager';
 
 
 
@@ -32,36 +32,42 @@ section('Cluster Info Controller', (section) => {
 
     section.test('Create test cluster', async () => {
         const service = new Service();
+        const client = new HTTP2Client();
         await service.load();
 
-        const clusterResponse = await superagent.post(`${host}:${service.getPort()}/rda-cluster.cluster`).ok(res => res.status === 201).send({
+        const clusterResponse = await client.post(`${host}:${service.getPort()}/rda-cluster.cluster`).expect(201).send({
             requiredMemory: 1000000,
             recordCount: 10000,
             dataSet: clusterDataSet,
             dataSource: clusterDataSource,
         });
+
+        const data = await clusterResponse.getData();
         
-        assert(clusterResponse.body);
-        assert(clusterResponse.body.clusterId);
-        assert(clusterResponse.body.shards.length);
+        assert(data);
+        assert(data.clusterId);
+        assert(data.shards.length);
 
         await section.wait(200);
         await service.end();
+        await client.end();
     });
 
 
 
     section.test('Get cluster by identifier', async() => {
         const service = new Service();
+        const client = new HTTP2Client();
         await service.load();
 
-        const clusterResponse = await superagent.get(`${host}:${service.getPort()}/rda-cluster.cluster-info`).query({
+        const clusterResponse = await client.get(`${host}:${service.getPort()}/rda-cluster.cluster-info`).query({
             dataSource: clusterDataSource,
             dataSet: clusterDataSet,
-        }).ok(res => res.status === 404).send();
+        }).expect(404).send();
 
         await section.wait(200);
         await service.end();
+        await client.end();
     });
 
 
