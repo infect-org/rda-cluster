@@ -1,9 +1,9 @@
-import { Controller } from 'rda-service';
+import { Controller } from '@infect/rda-service';
 import type from 'ee-types';
 import logd from 'logd';
 import l from 'ee-log';
-import MaxDistributionLoadBalancer from '../load-balancers/MaxDistribution.mjs';
-import NodeManager from '../NodeManager.mjs';
+import MaxDistributionLoadBalancer from '../load-balancers/MaxDistribution.js';
+import NodeManager from '../NodeManager.js';
 import HTTP2Client from '@distributed-systems/http2-client';
 
 

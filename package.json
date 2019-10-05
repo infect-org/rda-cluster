@@ -1,13 +1,13 @@
 {
-  "name": "rda-cluster-service",
-  "version": "1.0.0",
+  "name": "@infect/rda-cluster-service",
+  "version": "2.0.0",
   "description": "RDA Cluster management service",
-  "main": "index.mjs",
+  "main": "index.js",
   "directories": {
     "test": "test"
   },
   "scripts": {
-    "test": "node --experimental-modules --no-warnings --experimental-vm-modules ./node_modules/.bin/section ./test/*.mjs --dev --subenv-testing --log-level=error+ --log-module=*"
+    "test": "node --experimental-modules --no-warnings --experimental-vm-modules ./node_modules/.bin/section ./test/*.js --dev.testing --log-level=error+ --log-module=*"
   },
   "repository": {
     "type": "git",
@@ -17,30 +17,30 @@
     "RDA",
     "cluster"
   ],
-  "author": "Michael van der Weg",
+  "author": "Lina van der Weg",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/infect-org/rda-cluster-service/issues"
   },
   "homepage": "https://github.com/infect-org/rda-cluster-service#readme",
   "devDependencies": {
-    "@distributed-systems/eslint-config": "^1.0.1",
-    "@infect/rda-service-manager": "^1.0.2",
-    "rda-fixtures": "^2.0.0",
-    "section-tests": "^2.1.1"
+    "@distributed-systems/eslint-config": "^1.0.3",
+    "@infect/rda-fixtures": "^4.0.0",
+    "@infect/rda-service-manager": "^2.0.3",
+    "section-tests": "^2.2.4"
   },
   "dependencies": {
-    "@distributed-systems/http2-client": "^1.2.2",
-    "@infect/rda-lock-client": "^1.1.0",
-    "ee-log": "^3.0.6",
+    "@distributed-systems/http2-client": "^2.0.1",
+    "@infect/rda-lock-client": "^3.0.0",
+    "@infect/rda-service": "^4.0.4",
+    "ee-log": "^3.0.9",
     "ee-types": "^2.1.4",
     "envr": "^2.1.4",
-    "logd": "^2.1.3",
-    "logd-console-transport": "^1.0.0",
-    "rda-service": "3.1.0",
+    "logd": "^2.3.1",
+    "logd-console-transport": "^1.1.0",
     "related": "^2.16.0",
     "related-timestamps": "^2.0.0",
-    "status-manager": "^1.0.0",
-    "uuid": "^3.3.2"
-  }
+    "uuid": "^3.3.3"
+  },
+  "type": "module"
 }

@@ -1,5 +1,5 @@
-import NodeManager from '../src/NodeManager';
-import Service from '../';
+import NodeManager from '../src/NodeManager.js';
+import Service from '../index.js';
 import ServiceManager from '@infect/rda-service-manager';
 import section from 'section-tests';
 import assert from 'assert';
@@ -16,7 +16,7 @@ section('NodeManager', (section) => {
 
     section.setup(async() => {
         sm = new ServiceManager({
-            args: '--dev --log-level=error+ --log-module=*'.split(' ')
+            args: '--dev.testing --log-level=error+ --log-module=*'.split(' ')
         });
         
         await sm.startServices('rda-service-registry');

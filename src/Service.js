@@ -1,14 +1,18 @@
-import RDAService from 'rda-service';
+import RDAService from '@infect/rda-service';
 import path from 'path';
 import logd from 'logd';
 import Related from 'related';
 import RelatedTimestamps from 'related-timestamps';
 
-import ClusterController from './controller/ClusterController.mjs';
-import ClusterInfoController from './controller/ClusterInfoController.mjs';
+import ClusterController from './controller/ClusterController.js';
+import ClusterInfoController from './controller/ClusterInfoController.js';
 
 
 const log = logd.module('rda-cluster');
+
+
+
+const appRoot = path.join(path.dirname(new URL(import.meta.url).pathname), '../');
 
 
 
@@ -17,7 +21,10 @@ export default class ClusterService extends RDAService {
 
 
     constructor() {
-        super('rda-cluster');
+        super({
+            name: 'rda-cluster',
+            appRoot,
+        });
     }
 
 
@@ -27,13 +34,14 @@ export default class ClusterService extends RDAService {
     * prepare the service
     */
     async load() {
+        await this.initialize();
 
         // load database
-        this.related = new Related(this.config.db);
+        this.related = new Related(this.config.get('database'));
         this.related.use(new RelatedTimestamps());
 
         await this.related.load();
-        this.db = this.related[this.config.db.schema];
+        this.db = this.related[this.config.get('database').schema];
 
         const options = {
             db: this.db,
