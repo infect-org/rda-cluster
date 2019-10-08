@@ -114,14 +114,19 @@ export default class ClusterController extends Controller {
 
 
                     // call all nodes, tell them to initialize
-                    await Promise.all(shards.map((shard) => {
+                    await Promise.all(shards.map(async(shard) => {
                         const instance = shard.instance[0];
 
-                        return this.httpClient.post(`${instance.url}/rda-compute.data-set`).expect(201).send({
+                        const response = await this.httpClient.post(`${instance.url}/rda-compute.data-set`).send({
                             dataSource: 'infect-rda-sample-storage',
                             shardIdentifier: shard.identifier,
                             minFreeMemory: 25,
                         });
+
+                        if (!response.status(201)) {
+                            const data = await response.getData();
+                            throw new Error(`The POST request to ${instance.url}/rda-compute.data-set did return the status ${response.status()}. Expected 201. Reponse text: ${data}`);
+                        }
                     }));
 
 
