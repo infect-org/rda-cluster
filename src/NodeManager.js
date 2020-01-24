@@ -4,8 +4,8 @@ import uuid from 'uuid';
 
 
 /**
-* PAY ATTENATION: this code can only work if exactly one service instance 
-* of this service is active! Please implement locks if you wish to run 
+* PAY ATTENATION: this code can only work if exactly one service instance
+* of this service is active! Please implement locks if you wish to run
 * multiple instances!
 * The code below only regulates concurrent access per class instance!
 */
@@ -39,25 +39,25 @@ export default class NodeInstanceManager extends EventEmitter {
     * create a cluster with the given shard config
     */
     async _createCluster({
-        dataSource, 
-        dataSet, 
-        shardConfig
+        dataSource,
+        dataSet,
+        shardConfig,
     }) {
         const cluster = await new this.db.cluster({
             identifier: uuid.v4(),
             dataSetIdentifier: dataSet,
-            dataSource: dataSource,
+            dataSource,
             shard: shardConfig.map((config) => {
                 return new this.db.shard({
                     identifier: config.shardId,
                     instance: this.db.instance({
-                        identifier: config.instanceId
-                    })
-                })
+                        identifier: config.instanceId,
+                    }),
+                });
             }),
             clusterStatus: this.db.clusterStatus({
-                identifier: 'created'
-            })
+                identifier: 'created',
+            }),
         }).save();
 
         return cluster.toJSON();
@@ -73,7 +73,7 @@ export default class NodeInstanceManager extends EventEmitter {
     createCluster(dataSet, shardConfig) {
         return this.enqueue({
             method: '_createCluster',
-            args: [dataSet, shardConfig]
+            args: [dataSet, shardConfig],
         });
     }
 
@@ -92,13 +92,13 @@ export default class NodeInstanceManager extends EventEmitter {
     lock(fn) {
         return this.enqueue({
             method: '_lock',
-            args: [fn]
+            args: [fn],
         });
     }
 
 
     async _lock(fn) {
-        return await fn();
+        return fn();
     }
 
 
@@ -110,8 +110,8 @@ export default class NodeInstanceManager extends EventEmitter {
     * available in the db
     */
     async getAvailableInstances() {
-        return await this.db.instance('*', {
-            id_shard: null
+        return this.db.instance('*', {
+            id_shard: null,
         }).raw().find();
     }
 
@@ -121,12 +121,12 @@ export default class NodeInstanceManager extends EventEmitter {
 
 
     /**
-    * make sure that all compute-node instances 
-    * are in the database. remove all that are 
+    * make sure that all compute-node instances
+    * are in the database. remove all that are
     * not available anymore
     */
     async _syncInstances(instances) {
-        const liveInstances = new Map(instances.map((instance) => [instance.identifier, instance]));
+        const liveInstances = new Map(instances.map(instance => [instance.identifier, instance]));
         const existingInstances = await this.db.instance('identifier').raw().find();
         const dbInstances = new Set(existingInstances.map(instance => instance.identifier));
 
@@ -135,7 +135,7 @@ export default class NodeInstanceManager extends EventEmitter {
         for (const dbInstance of existingInstances) {
             if (!liveInstances.has(dbInstance.identifier)) {
                 this.emit('instance_removed', dbInstance);
-                
+
                 await this.db.instance({
                     identifier: dbInstance.identifier
                 }).limit(1).delete();
@@ -239,7 +239,7 @@ export default class NodeInstanceManager extends EventEmitter {
     }) {
         if (!this.queues.has(method)) this.queues.set(method, []);
 
-        const promise =  new Promise((resolve, reject) => {
+        const promise = new Promise((resolve, reject) => {
             this.queues.get(method).push({
                 resolve,
                 reject,
@@ -252,7 +252,7 @@ export default class NodeInstanceManager extends EventEmitter {
         setImmediate(() => {
             this.executeQueue(method);
         });
-        
+
 
         return promise;
     }

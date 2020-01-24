@@ -11,8 +11,6 @@ export default class MaxDistibutionLoadBalancer {
     */
     async getShards({
         computeNodes,
-        requiredMemory,
-        recordCount,
     }) {
         return computeNodes.map((node) => ({
             shardId: uuid.v4(),

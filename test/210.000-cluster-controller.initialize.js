@@ -21,8 +21,8 @@ section('Cluster Controller: Initialize', (section) => {
             args: '--dev.testing --log-level=error+ --log-module=*'.split(' ')
         });
         
-        await sm.startServices('rda-service-registry', 'infect-rda-sample-storage');
-        await sm.startServices('rda-compute');
+        await sm.startServices('@infect/rda-service-registry', '@infect/infect-rda-sample-storage');
+        await sm.startServices('@infect/rda-compute');
     });
 
 

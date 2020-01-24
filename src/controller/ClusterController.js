@@ -103,7 +103,6 @@ export default class ClusterController extends Controller {
                 id: clusterId,
             }).fetchClusterStatus('identifier').raw().findOne();
 
-
             if (cluster) {
                 if (cluster.clusterStatus.identifier === 'created') {
 
@@ -119,6 +118,8 @@ export default class ClusterController extends Controller {
 
                         const response = await this.httpClient.post(`${instance.url}/rda-compute.data-set`).send({
                             dataSource: 'infect-rda-sample-storage',
+                            modelPrefix: 'Infect',
+                            dataSetIdentifier: cluster.dataSetIdentifier,
                             shardIdentifier: shard.identifier,
                             minFreeMemory: 25,
                         });
@@ -132,7 +133,7 @@ export default class ClusterController extends Controller {
 
                     // start polling each instance for the 
                     // data loading status
-                    this.monitorInstances(clusterId, shards);
+                    this.monitorInstances(clusterId, shards, cluster.dataSetIdentifier);
 
                 } else request.response().status(409).send(`Cluster with the id '${clusterId}' has a non viable status '${cluster.clusterStatus.identifier}'! Can onlny initialize clusters with the status 'created'!`); 
             } else request.response().status(404).send(`Cluster with the id '${clusterId}' not found!`); 
@@ -148,11 +149,11 @@ export default class ClusterController extends Controller {
     /**
     * poll compute instances in order to determine the cluster status
     */
-    monitorInstances(clusterId, shards) {
+    monitorInstances(clusterId, shards, dataSetIdentifier) {
 
         Promise.all(shards.map(async (shard) => {
             const instance = shard.instance[0];
-            const response = await this.httpClient.get(`${instance.url}/rda-compute.data-set`).send();
+            const response = await this.httpClient.get(`${instance.url}/rda-compute.data-set/${dataSetIdentifier}`).send();
             const data = await response.getData();
 
             // set status if available
@@ -165,19 +166,19 @@ export default class ClusterController extends Controller {
 
             // 201 = the instance has finished loading
             return response.status(201);
-        })).then(async (results) => {
+        })).then(async(results) => {
 
             // if there is one false entry we're not done yet
             if (results.includes(false)) {
 
                 // wait some time, ask again
                 setTimeout(() => {
-                    this.monitorInstances(clusterId, shards);
+                    this.monitorInstances(clusterId, shards, dataSetIdentifier);
                 }, 1000);
             } else {
                 await this.updateClusterStatus(clusterId, 'active');
             }
-        }).catch(async (err) => {
+        }).catch(async(err) => {
             console.log(err);
             await this.updateClusterStatus(clusterId, 'failed');
         }).catch(l);
@@ -192,9 +193,9 @@ export default class ClusterController extends Controller {
     */
     async updateInstanceStatus(instanceId, loadedRecordCount) {
         await this.db.instance({
-            id: instanceId
+            id: instanceId,
         }).update({
-            loadedRecordCount
+            loadedRecordCount,
         });
     }
 
@@ -208,13 +209,13 @@ export default class ClusterController extends Controller {
     */
     async updateClusterStatus(clusterId, status) {
         const dbStatus = await this.db.clusterStatus('id', {
-            identifier: status
+            identifier: status,
         }).raw().findOne();
 
         await this.db.cluster({
-            id: clusterId
+            id: clusterId,
         }).limit(1).update({
-            id_clusterStatus: dbStatus.id
+            id_clusterStatus: dbStatus.id,
         });
     }
 
@@ -240,16 +241,12 @@ export default class ClusterController extends Controller {
             request.response().status(400).send('Missing request body!');
         } else if (!type.object(data)) {
             request.response().status(400).send('Request body must be a json object!');
-        } else if (!type.number(data.requiredMemory)) {
-            request.response().status(400).send('Missing parameter \'requiredMemory\' in request body!');
-        } else if (!type.number(data.recordCount)) {
-            request.response().status(400).send('Missing parameter \'recordCount\' in request body!');
         } else if (!type.string(data.dataSet)) {
             request.response().status(400).send('Missing parameter \'dataSet\' in request body!');
         } else if (!type.string(data.dataSource)) {
             request.response().status(400).send('Missing parameter \'dataSource\' in request body!');
         } else {
-            
+
             // get a lock so that other have to wait until we
             // are ready
             await this.nodeManager.lock(async() => {
@@ -258,7 +255,7 @@ export default class ClusterController extends Controller {
                 const instances = await this.getAvailableComputeNodeInstances();
 
 
-                // keep it simple for now, distribute the load to all 
+                // keep it simple for now, distribute the load to all
                 // available compute instances
                 const loadBalancer = new MaxDistributionLoadBalancer();
                 const shardConfig = await loadBalancer.getShards({
@@ -270,15 +267,15 @@ export default class ClusterController extends Controller {
 
                 // store shard config
                 const cluster = await this.nodeManager.createCluster({
-                    dataSource: data.dataSource, 
-                    dataSet: data.dataSet, 
-                    shardConfig: shardConfig
+                    dataSource: data.dataSource,
+                    dataSet: data.dataSet,
+                    shardConfig,
                 });
 
                 request.response().status(201).send({
                     clusterId: cluster.id,
                     clusterIdentifier: cluster.identifier,
-                    shards: shardConfig.map(config => config.shardId)
+                    shards: shardConfig.map(config => config.shardId),
                 });
             });
         }
@@ -295,7 +292,7 @@ export default class ClusterController extends Controller {
     * in the db if they are not already in the db
     */
     async getAvailableComputeNodeInstances() {
-        
+
         // resolve the cluster service
         const registryHost = await this.registryClient.registryHost;
 
@@ -350,15 +347,15 @@ export default class ClusterController extends Controller {
                     loadedRecordCount: shard.instance[0].loadedRecordCount,
                 };
             });
-            
+
 
             // create a neat object that can be returned
             const data = {
                 clusterId: cluster.id,
                 clusterIdentifier: cluster.identifier,
                 status: cluster.clusterStatus.identifier,
-                shards: shards,
-                totalLoadedRecords: totalLoadedRecords,
+                shards,
+                totalLoadedRecords,
             };
 
 
