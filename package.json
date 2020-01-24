@@ -1,6 +1,6 @@
 {
   "name": "@infect/rda-cluster-service",
-  "version": "2.0.6",
+  "version": "3.0.0",
   "description": "RDA Cluster management service",
   "main": "index.js",
   "directories": {
