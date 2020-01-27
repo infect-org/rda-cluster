@@ -3,8 +3,8 @@ database:
     database: infect
     schema: rda_cluster_service
     hosts:
-        - host: 10.80.100.1
-          username: postgres
+        - host: ${CLUSTER_SERVICE_DB_HOST}
+          username: ${CLUSTER_SERVICE_DB_USER}
           password: ${CLUSTER_SERVICE_DB_PASSWORD}
           port: 5432
           pools:
