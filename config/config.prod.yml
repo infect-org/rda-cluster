@@ -1,6 +1,6 @@
 database:
     type: postgres
-    database: rda
+    database: ${CLUSTER_SERVICE_DB_NAME}
     schema: rda_cluster_service
     hosts:
         - host: ${CLUSTER_SERVICE_DB_HOST}
