@@ -29,7 +29,7 @@
     "@infect/rda-compute-service": "^3.0.0",
     "@infect/rda-fixtures": "^4.0.0",
     "@infect/rda-service-manager": "^2.0.4",
-    "@infect/rda-service-registry": "^3.0.0",
+    "@infect/rda-service-registry": "^3.0.1",
     "section-tests": "^2.2.4"
   },
   "dependencies": {
