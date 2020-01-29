@@ -14,12 +14,12 @@ create table rda_cluster_service."instance_shard" (
         unique("id_instance", "id_shard"),
     constraint "instance_shard_fk_instance"
         foreign key ("id_instance")
-        references "instance" (id)
+        references rda_cluster_service."instance" (id)
         on update cascade
         on delete restrict,
     constraint "instance_shard_fk_shard"
         foreign key ("id_shard")
-        references "shard" (id)
+        references rda_cluster_service."shard" (id)
         on update cascade
         on delete restrict
 );
