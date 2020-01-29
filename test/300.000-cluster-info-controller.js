@@ -4,6 +4,7 @@ import HTTP2Client from '@distributed-systems/http2-client';
 import assert from 'assert';
 import log from 'ee-log';
 import ServiceManager from '@infect/rda-service-manager';
+import { ShardedDataSet } from '@infect/rda-fixtures';
 
 
 
@@ -13,22 +14,24 @@ const host = 'http://l.dns.porn';
 
 section('Cluster Info Controller', (section) => {
     let sm;
-    let clusterDataSet = 'data-set-'+Math.round(Math.random()*1000000);
-    let clusterDataSource = 'data-source-'+Math.round(Math.random()*1000000);
+    let dataSet;
 
 
     section.setup(async() => {
         sm = new ServiceManager({
             args: '--dev.testing --log-level=error+ --log-module=*'.split(' ')
         });
-        
-        await sm.startServices('@infect/rda-service-registry');
-        await sm.startServices('@infect/rda-compute', '@infect/rda-compute', '@infect/rda-compute', '@infect/rda-compute');
+
+        await sm.startServices('@infect/rda-service-registry', '@infect/infect-rda-sample-storage');
+        await sm.startServices('@infect/rda-compute-service', '@infect/rda-compute-service', '@infect/rda-compute-service', '@infect/rda-compute-service');
+
+        dataSet = new ShardedDataSet();
+        await dataSet.create();
     });
 
 
 
-    section.test('Create test cluster', async () => {
+    section.test('Create test cluster', async() => {
         const service = new Service();
         const client = new HTTP2Client();
         await service.load();
@@ -36,12 +39,13 @@ section('Cluster Info Controller', (section) => {
         const clusterResponse = await client.post(`${host}:${service.getPort()}/rda-cluster.cluster`).expect(201).send({
             requiredMemory: 1000000,
             recordCount: 10000,
-            dataSet: clusterDataSet,
-            dataSource: clusterDataSource,
+            dataSet: dataSet.dataSetId,
+            dataSource: dataSet.storageServiceName,
+            modelPrefix: 'Infect',
         });
 
         const data = await clusterResponse.getData();
-        
+
         assert(data);
         assert(data.clusterId);
         assert(data.shards.length);
@@ -58,9 +62,9 @@ section('Cluster Info Controller', (section) => {
         const client = new HTTP2Client();
         await service.load();
 
-        const clusterResponse = await client.get(`${host}:${service.getPort()}/rda-cluster.cluster-info`).query({
-            dataSource: clusterDataSource,
-            dataSet: clusterDataSet,
+        await client.get(`${host}:${service.getPort()}/rda-cluster.cluster-info`).query({
+            dataSource: dataSet.storageServiceName,
+            dataSet: dataSet.dataSetId,
         }).expect(404).send();
 
         await section.wait(200);

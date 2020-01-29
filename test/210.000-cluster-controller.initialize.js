@@ -22,7 +22,7 @@ section('Cluster Controller: Initialize', (section) => {
         });
         
         await sm.startServices('@infect/rda-service-registry', '@infect/infect-rda-sample-storage');
-        await sm.startServices('@infect/rda-compute');
+        await sm.startServices('@infect/rda-compute-service');
     });
 
 
@@ -35,21 +35,22 @@ section('Cluster Controller: Initialize', (section) => {
         await service.load();
 
 
+        section.notice('create data set & shard it');
+        const dataSet = new ShardedDataSet();
+        await dataSet.create();
+
+
         section.notice('create cluster with one shard');
         const clusterResponse = await client.post(`${host}:${service.getPort()}/rda-cluster.cluster`).expect(201).send({
             requiredMemory: 1000000,
             recordCount: 10000,
-            dataSet: 'data-set-'+Math.round(Math.random()*1000000),
-            dataSource: 'data-source-'+Math.round(Math.random()*1000000),
+            dataSet: dataSet.dataSetId,
+            dataSource: dataSet.storageServiceName,
+            modelPrefix: 'Infect',
         });
 
         const clusterResponseData = await clusterResponse.getData();
 
-        section.notice('create data set & shard it');
-        const dataSet = new ShardedDataSet();
-        const shardName = await dataSet.create({
-            name: clusterResponseData.shards[0].identifier
-        });
 
 
         section.notice('initialize cluster');

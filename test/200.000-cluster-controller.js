@@ -20,7 +20,7 @@ section('Cluster Controller', (section) => {
         });
 
         await sm.startServices('@infect/rda-service-registry');
-        await sm.startServices('@infect/rda-compute', '@infect/rda-compute', '@infect/rda-compute', '@infect/rda-compute');
+        await sm.startServices('@infect/rda-compute-service', '@infect/rda-compute-service', '@infect/rda-compute-service', '@infect/rda-compute-service');
     });
 
 
@@ -35,6 +35,7 @@ section('Cluster Controller', (section) => {
             recordCount: 10000,
             dataSet: 'data-set-'+Math.round(Math.random()*1000000),
             dataSource: 'data-source-'+Math.round(Math.random()*1000000),
+            modelPrefix: 'Infect',
         });
 
         const data = await clusterResponse.getData();

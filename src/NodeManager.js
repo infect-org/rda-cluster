@@ -42,17 +42,19 @@ export default class NodeInstanceManager extends EventEmitter {
         dataSource,
         dataSet,
         shardConfig,
+        modelPrefix,
     }) {
         const cluster = await new this.db.cluster({
             identifier: uuid.v4(),
             dataSetIdentifier: dataSet,
             dataSource,
+            modelPrefix,
             shard: shardConfig.map((config) => {
                 return new this.db.shard({
                     identifier: config.shardId,
-                    instance: this.db.instance({
+                    instance: [this.db.instance({
                         identifier: config.instanceId,
-                    }),
+                    })],
                 });
             }),
             clusterStatus: this.db.clusterStatus({
@@ -110,9 +112,7 @@ export default class NodeInstanceManager extends EventEmitter {
     * available in the db
     */
     async getAvailableInstances() {
-        return this.db.instance('*', {
-            id_shard: null,
-        }).raw().find();
+        return this.db.instance('*').raw().find();
     }
 
 

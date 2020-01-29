@@ -112,13 +112,18 @@ export default class ClusterController extends Controller {
                     }).raw().find();
 
 
+                    // load the source code into the database for 
+                    // the cluster on the data source
+                    await this.loadSourceCode(cluster.dataSource, cluster.dataSetIdentifier);
+
+
                     // call all nodes, tell them to initialize
                     await Promise.all(shards.map(async(shard) => {
                         const instance = shard.instance[0];
 
                         const response = await this.httpClient.post(`${instance.url}/rda-compute.data-set`).send({
-                            dataSource: 'infect-rda-sample-storage',
-                            modelPrefix: 'Infect',
+                            dataSource: cluster.dataSource,
+                            modelPrefix: cluster.modelPrefix,
                             dataSetIdentifier: cluster.dataSetIdentifier,
                             shardIdentifier: shard.identifier,
                             minFreeMemory: 25,
@@ -142,6 +147,26 @@ export default class ClusterController extends Controller {
 
 
 
+
+
+    /**
+     * tell the data source to reload the source code. loads the sources from the filesystem into the memory
+     *
+     * @param      {<type>}   dataSource         The data source
+     * @param      {<type>}   dataSetIdentifier  The data set identifier
+     * @return     {Promise}  { description_of_the_return_value }
+     */
+    async loadSourceCode(dataSource, dataSetIdentifier) {
+        const dataSourceHost = await this.registryClient.resolve(dataSource);
+
+        await this.httpClient.post(`${dataSourceHost}/infect-rda-sample-storage.source-code-loader`)
+            .expect(201)
+            .send();
+
+        await this.httpClient.patch(`${dataSourceHost}/infect-rda-sample-storage.source-code-loader/${dataSetIdentifier}`)
+            .expect(200)
+            .send();
+    }
 
 
 
@@ -245,6 +270,8 @@ export default class ClusterController extends Controller {
             request.response().status(400).send('Missing parameter \'dataSet\' in request body!');
         } else if (!type.string(data.dataSource)) {
             request.response().status(400).send('Missing parameter \'dataSource\' in request body!');
+        } else if (!type.string(data.modelPrefix)) {
+            request.response().status(400).send('Missing parameter \'modelPrefix\' in request body!');
         } else {
 
             // get a lock so that other have to wait until we
@@ -269,6 +296,7 @@ export default class ClusterController extends Controller {
                 const cluster = await this.nodeManager.createCluster({
                     dataSource: data.dataSource,
                     dataSet: data.dataSet,
+                    modelPrefix: data.modelPrefix || '',
                     shardConfig,
                 });
 
